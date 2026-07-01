@@ -34,19 +34,19 @@ public class DataSourceFactory {
     }
 
     public static IDataSource createMoleculeDatasource(String path) throws IOException {
-        System.err.println("PAAAAAAATH:" + path);
-
-         
-          //  System.err.println("PAAAAAAATH after editing:" + path.substring(0, path.lastIndexOf("_")));
         File file = new File(path);
-        if (!file.exists() || file.isDirectory()) {
-            path = path.substring(0, path.lastIndexOf("_"));
-            System.err.println("PAAAAAAATH after editing:" + path);
-            return new HdtDataSource(path, "Molecule HDT file", path);
+        if ((!file.exists() || file.isDirectory()) && !path.endsWith(".hdt")) {
+            File candidate = new File(path + ".hdt");
+            if (candidate.exists() && candidate.isFile()) {
+                file = candidate;
+            }
         }
-        
-       
-        return new HdtDataSource(path, "Molecule HDT file", path);
+
+        if (!file.exists() || file.isDirectory()) {
+            throw new IOException("Molecule HDT file not found: " + path);
+        }
+
+        return new HdtDataSource(file.getAbsolutePath(), "Molecule HDT file", file.getAbsolutePath());
     }
 
 }

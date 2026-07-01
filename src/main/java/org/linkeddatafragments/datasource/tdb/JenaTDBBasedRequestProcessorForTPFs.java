@@ -10,6 +10,7 @@ import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.QuerySolutionMap;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.Syntax;
+import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Literal;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
@@ -78,7 +79,6 @@ public class JenaTDBBasedRequestProcessorForTPFs
             //        e.g., (?x foaf:knows ?x ) or (_:bn foaf:knows _:bn)
             // see https://github.com/LinkedDataFragments/Server.Java/issues/24
 
-            Model model = tdb.getDefaultModel();
             QuerySolutionMap map = new QuerySolutionMap();
             if ( ! subject.isVariable() ) {
                 map.add("s", subject.asConstantTerm());
@@ -89,37 +89,45 @@ public class JenaTDBBasedRequestProcessorForTPFs
             if ( ! object.isVariable() ) {
                 map.add("o", object.asConstantTerm());
             }
-            Model triples = ModelFactory.createDefaultModel();
 
-            try (QueryExecution qexec = QueryExecutionFactory.create(query, model, map)) {
-                qexec.execConstruct(triples);
-            }
+            long estimate;
+            tdb.begin(ReadWrite.READ);
+            try {
+                Model model = tdb.getDefaultModel();
+                Model triples = ModelFactory.createDefaultModel();
 
-            if (triples.isEmpty()) {
-                return 0;
-            }
-
-            // Try to get an estimate
-            long size = triples.size();
-            long estimate = -1;
-
-            try (QueryExecution qexec = QueryExecutionFactory.create(countQuery, model, map)) {
-                ResultSet results = qexec.execSelect();
-                if (results.hasNext()) {
-                    QuerySolution soln = results.nextSolution() ;
-                    Literal literal = soln.getLiteral("count");
-                    estimate = literal.getLong();
+                try (QueryExecution qexec = QueryExecutionFactory.create(query, model, map)) {
+                    qexec.execConstruct(triples);
                 }
-            }
 
-            /*GraphStatisticsHandler stats = model.getGraph().getStatisticsHandler();
-            if (stats != null) {
-                Node s = (subject != null) ? subject.asNode() : null;
-                Node p = (predicate != null) ? predicate.asNode() : null;
-                Node o = (object != null) ? object.asNode() : null;
-                estimate = stats.getStatistic(s, p, o);
-            }*/
-            return estimate;
+                if (triples.isEmpty()) {
+                    return 0;
+                }
+
+                // Try to get an estimate
+                long size = triples.size();
+                estimate = -1;
+
+                try (QueryExecution qexec = QueryExecutionFactory.create(countQuery, model, map)) {
+                    ResultSet results = qexec.execSelect();
+                    if (results.hasNext()) {
+                        QuerySolution soln = results.nextSolution() ;
+                        Literal literal = soln.getLiteral("count");
+                        estimate = literal.getLong();
+                    }
+                }
+
+                /*GraphStatisticsHandler stats = model.getGraph().getStatisticsHandler();
+                if (stats != null) {
+                    Node s = (subject != null) ? subject.asNode() : null;
+                    Node p = (predicate != null) ? predicate.asNode() : null;
+                    Node o = (object != null) ? object.asNode() : null;
+                    estimate = stats.getStatistic(s, p, o);
+                }*/
+                return estimate;
+            } finally {
+                tdb.end();
+            }
         }
 
         @Override
@@ -153,7 +161,6 @@ public class JenaTDBBasedRequestProcessorForTPFs
             //        e.g., (?x foaf:knows ?x ) or (_:bn foaf:knows _:bn)
             // see https://github.com/LinkedDataFragments/Server.Java/issues/24
 
-            Model model = tdb.getDefaultModel();
             QuerySolutionMap map = new QuerySolutionMap();
             if ( ! subject.isVariable() ) {
                 map.add("s", subject.asConstantTerm());
@@ -168,45 +175,51 @@ public class JenaTDBBasedRequestProcessorForTPFs
             query.setOffset(offset);
             query.setLimit(limit);
 
-            Model triples = ModelFactory.createDefaultModel();
+            tdb.begin(ReadWrite.READ);
+            try {
+                Model model = tdb.getDefaultModel();
+                Model triples = ModelFactory.createDefaultModel();
 
-            try (QueryExecution qexec = QueryExecutionFactory.create(query, model, map)) {
-                qexec.execConstruct(triples);
-            }
-
-            if (triples.isEmpty()) {
-                return createEmptyTriplePatternFragment();
-            }
-
-            // Try to get an estimate
-            long size = triples.size();
-            long estimate = -1;
-
-            try (QueryExecution qexec = QueryExecutionFactory.create(countQuery, model, map)) {
-                ResultSet results = qexec.execSelect();
-                if (results.hasNext()) {
-                    QuerySolution soln = results.nextSolution() ;
-                    Literal literal = soln.getLiteral("count");
-                    estimate = literal.getLong();
+                try (QueryExecution qexec = QueryExecutionFactory.create(query, model, map)) {
+                    qexec.execConstruct(triples);
                 }
+
+                if (triples.isEmpty()) {
+                    return createEmptyTriplePatternFragment();
+                }
+
+                // Try to get an estimate
+                long size = triples.size();
+                long estimate = -1;
+
+                try (QueryExecution qexec = QueryExecutionFactory.create(countQuery, model, map)) {
+                    ResultSet results = qexec.execSelect();
+                    if (results.hasNext()) {
+                        QuerySolution soln = results.nextSolution() ;
+                        Literal literal = soln.getLiteral("count");
+                        estimate = literal.getLong();
+                    }
+                }
+
+                /*GraphStatisticsHandler stats = model.getGraph().getStatisticsHandler();
+                if (stats != null) {
+                    Node s = (subject != null) ? subject.asNode() : null;
+                    Node p = (predicate != null) ? predicate.asNode() : null;
+                    Node o = (object != null) ? object.asNode() : null;
+                    estimate = stats.getStatistic(s, p, o);
+                }*/
+
+                // No estimate or incorrect
+                if (estimate < offset + size) {
+                    estimate = (size == limit) ? offset + size + 1 : offset + size;
+                }
+
+                // create the fragment
+                final boolean isLastPage = ( estimate < offset + limit );
+                return createTriplePatternFragment( triples, estimate, isLastPage );
+            } finally {
+                tdb.end();
             }
-
-            /*GraphStatisticsHandler stats = model.getGraph().getStatisticsHandler();
-            if (stats != null) {
-                Node s = (subject != null) ? subject.asNode() : null;
-                Node p = (predicate != null) ? predicate.asNode() : null;
-                Node o = (object != null) ? object.asNode() : null;
-                estimate = stats.getStatistic(s, p, o);
-            }*/
-
-            // No estimate or incorrect
-            if (estimate < offset + size) {
-                estimate = (size == limit) ? offset + size + 1 : offset + size;
-            }
-
-            // create the fragment
-            final boolean isLastPage = ( estimate < offset + limit );
-            return createTriplePatternFragment( triples, estimate, isLastPage );
         }
 
     } // end of class Worker

@@ -165,7 +165,7 @@ public class PartitionFragmentServlet extends HttpServlet {
             dataSource = getDataSource(request);
 
             String acceptHeader = request.getHeader(HttpHeaders.ACCEPT);
-            String bestMatch = MIMEParse.bestMatch(acceptHeader);
+            String bestMatch = MIMEParse.bestMatch(acceptHeader == null ? "*/*" : acceptHeader);
 
             response.setHeader(HttpHeaders.SERVER, "Linked Data Fragments Server");
             response.setContentType(bestMatch);

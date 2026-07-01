@@ -3,6 +3,7 @@ package org.linkeddatafragments.test.datasource;
 import com.google.gson.JsonObject;
 
 import org.apache.jena.query.Dataset;
+import org.apache.jena.query.ReadWrite;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.tdb.TDBFactory;
 
@@ -62,11 +63,13 @@ public class JenaTDBDataSourceTest extends DataSourceTest<RDFNode,String,String>
         jena.mkdir();
         
         dataset = TDBFactory.createDataset(jena.getAbsolutePath());
+        dataset.begin(ReadWrite.WRITE);
 
         Model model = dataset.getDefaultModel();
         InputStream in = ClassLoader.getSystemResourceAsStream("demo.nt");
         RDFDataMgr.read(model, in, Lang.NTRIPLES);
         model.commit();
+        dataset.end();
 
         // Everything is in place, now create the LDF datasource                
         JsonObject config = createConfig("jena tdb test", "jena tdb test",

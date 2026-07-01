@@ -55,3 +55,22 @@ This software is still under development. It currently supports:
 - HTML, Turtle, NTriples, JsonLD, RDF/XML output
 
 A [more complete server](https://github.com/LinkedDataFragments/Server.js/) has been implemented for the Node.js platform.
+
+
+### Usage
+
+To access the server, the following endpoints are available:
+
+- `http://localhost:8080/smartkg+`: the original data source in HDT format. This should be used for executing queries on the original data, and for executing queries that cannot be executed on the partitioned data or when no partition can be selected for a query. `smartkg+` could be replaced with whatever name you have given to the HDT data source in the configuration file. An example of a query looks like this: `http://localhost:8080/smartkg+?subject=&predicate=&object=`
+- `http://localhost:8080/molecule/smartkg+`: returns the metadata of the partitioned data. It should be noted when your data contains lots of partitions, the metadata file can be quite large, and it might take a while to load the metadata.
+- `http://localhost:8080/molecule/smartkg+/2.hdt`: returns the partition with id 2. The name of the partition should be the same as the name of the partition files in the metadata file. It should be noted that if the `numTriples` field is 0, the partition is empty and no file will be returned, as it does not exist.
+- `http://localhost:8080/partition/2`: returns the same partition with id 2, but in turtle format instead of HDT. The name of the partition should be the same as the name of the partition files in the metadata file.
+- `http://localhost:8080/plan?bgp=...`: returns the execution plan for the given BGP query. The BGP query should be URL encoded. The most baseline example of a BGP query looks like this: `http://localhost:8080/plan?bgp=%3Fs%20%3Fp%20%3Fo%20.`, which just returns the plan for all possible triples. Additional filters can be added to the BGP query, for example: `http://localhost:8080/plan?bgp=%3Fs%20%3Fp%20%3Fo%20.&speed=1&latency=1000&"`. The `speed` parameter is used to indicate the speed of the network connection in Mbps, and the `latency` parameter is used to indicate the latency of the network connection in ms.
+
+### Config file
+A small note on the configuration file. An example is also provided and was used in the benchmarking of the WiseKG: `config.json`. The following parameters are used:
+- `metadatapath` is the path to the metadata file of the partitioned data. It should be noted that the metadata file should be in JSON format.
+- `moleculesdatapath` is the path to the folder that contains the partition files in HDT format. The name of the partition files should be the same as the name of the partition files in the metadata file.
+- `cspath` is the path to the file of the original HDT data source but with a `.cs` extension. ++++
+- `partstring` is the pre-string for the partition files. For example, if the partition files are named `partition_1.hdt`, `partition_2.hdt`, etc., then the `partstring` should be `partition_`. If none was provided, you can set this value to an empty string.
+- `uri` and `default`.....

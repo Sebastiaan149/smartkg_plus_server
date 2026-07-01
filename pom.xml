@@ -4,8 +4,8 @@
     <groupId>org.linkeddatafragments</groupId>
     <artifactId>wisekgserver</artifactId>
     <version>0.0.1</version>
-    <packaging>war</packaging>
-    <name>WiseKG Server</name>
+    <packaging>jar</packaging>
+    <name>SmartKG+ Server</name>
     <url>http://linkeddatafragments.org</url>
     <description>
         This is a Java implementation of the Linked Data Fragments Server based on Jena.
@@ -25,12 +25,13 @@
     </scm>
     <properties>
         <jettyVersion>9.4.9.v20180320</jettyVersion>
+        <jenaVersion>3.13.1</jenaVersion>
     </properties>
     <dependencies>
         <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-arq</artifactId>
-            <version>3.7.0</version>
+            <version>${jenaVersion}</version>
             <type>jar</type>
         </dependency>
         <dependency>
@@ -139,7 +140,7 @@
         <dependency>
             <groupId>org.apache.jena</groupId>
             <artifactId>jena-tdb</artifactId>
-            <version>3.7.0</version>
+            <version>${jenaVersion}</version>
             <type>jar</type>
         </dependency>
     </dependencies>

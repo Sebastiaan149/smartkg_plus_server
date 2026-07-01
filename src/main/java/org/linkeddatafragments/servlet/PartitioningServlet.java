@@ -10,6 +10,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -162,15 +163,9 @@ public class PartitioningServlet extends HttpServlet {
           // System.out.println( "=====>"  + dataSources.keySet());
                 if (!dataSources.containsKey(dataSourceName)) {
             try {
-                
-              // System.out.println("=============In the IF ========" + dataSourceName);
-           //     System.out.println("=============In the IF ========" + config.getMoleculesdatapath() + "/hdt/" + dataSourceName);
-                dataSources.put(dataSourceName, DataSourceFactory.createMoleculeDatasource(config.getMoleculesdatapath() + dataSourceName));
-                
-            //    System.out.println("End getDataSource");
+                        dataSources.put(dataSourceName, DataSourceFactory.createMoleculeDatasource(resolveMoleculePath(dataSourceName)));
             } catch (IOException e) {
                 System.out.println("Actually we get an exception here ...");
-            //    System.out.print("dataSourceName, DataSourceFactory.createMoleculeDatasource(dataSourceName)");
                 throw new DataSourceNotFoundException(dataSourceName);
             }
         }
@@ -218,6 +213,14 @@ public class PartitioningServlet extends HttpServlet {
         return dataSource;
     }
 
+    private static String resolveMoleculePath(String dataSourceName) {
+        String fileName = new File(dataSourceName).getName();
+        if (!fileName.endsWith(".hdt") && !fileName.endsWith(".index.v1-1")) {
+            fileName = fileName + ".hdt";
+        }
+        return Paths.get(config.getMoleculesdatapath(), fileName).toString();
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -227,7 +230,7 @@ public class PartitioningServlet extends HttpServlet {
             System.out.println("=======================Partition Servlet=================");
 
             String acceptHeader = request.getHeader(HttpHeaders.ACCEPT);
-            String bestMatch = MIMEParse.bestMatch(acceptHeader);
+            String bestMatch = MIMEParse.bestMatch(acceptHeader == null ? "*/*" : acceptHeader);
             response.setHeader(HttpHeaders.SERVER, "Linked Data Fragments Server");
             response.setContentType(bestMatch);
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
@@ -273,43 +276,46 @@ public class PartitioningServlet extends HttpServlet {
                 out.close();
             }*/
 
-            //String fileSource = config.getMetadatapath();
-            if (uri.endsWith(".hdt") || uri.endsWith(".index.v1-1")) {
-                String encodings = request.getHeader("Accept-Encoding");
+            String fileName = new File(uri).getName();
 
-                hdtfileLocation = config.getMoleculesdatapath() + uri.substring(uri.lastIndexOf("/") + 1);
+            if (!fileName.endsWith(".hdt") && !fileName.endsWith(".index.v1-1")) {
+                File metadataFile = new File(config.getMetadatapath());
+                if (!metadataFile.exists()) {
+                    throw new FileNotFoundException("Metadata file not found: " + metadataFile.getAbsolutePath());
+                }
+
+                response.setContentType("application/json");
+                FileUtils.copyFile(metadataFile, response.getOutputStream());
+                return;
             }
-             System.out.println("=============== uri.substring ===========================" + uri.substring(uri.lastIndexOf("/") + 1));
-            System.out.println("=============== after fileSource ===========================" + hdtfileLocation);
-            
-            
-             File file = new File(hdtfileLocation);
-            if (!file.exists() || file.isDirectory()) {
-                hdtfileLocation = hdtfileLocation.substring(0, hdtfileLocation.lastIndexOf("_"));
-              
+
+            String resolvedPath = Paths.get(config.getMoleculesdatapath(), fileName).toString();
+            File hdtfile = new File(resolvedPath);
+            if (!hdtfile.exists()) {
+                throw new FileNotFoundException("Partition file not found: " + hdtfile.getAbsolutePath());
             }
-        
-            File hdtfile = new File(hdtfileLocation);
+
             HDTfiles.add(hdtfile.toPath());
-            File indexfile = new File(hdtfileLocation + ".index.v1-1");
-            HDTfiles.add(indexfile.toPath());
+            File indexfile = new File(resolvedPath + ".index.v1-1");
+            if (indexfile.exists()) {
+                HDTfiles.add(indexfile.toPath());
+            }
             System.out.println("=============== fileSource ===========================" + hdtfile.length());
-            
-            
+
+
             ServletOutputStream dest = response.getOutputStream();
 
-            try (TarArchiveOutputStream out = new TarArchiveOutputStream(new BufferedOutputStream(dest))){ 
+            try (TarArchiveOutputStream out = new TarArchiveOutputStream(new BufferedOutputStream(dest))){
                 for (Path p : HDTfiles) {
-                    
+
                     System.out.println("=============== Add files to Tar ===========================" + p.getFileName().toString());
-                           out.putArchiveEntry(new TarArchiveEntry(p.toFile(), p.getFileName().toString()));
-                    
-                   
-                        try (InputStream i = Files.newInputStream(p)) {
-                            IOUtils.copy(i, out);
-                            i.close();
-                        }
-                    
+                    out.putArchiveEntry(new TarArchiveEntry(p.toFile(), p.getFileName().toString()));
+
+                    try (InputStream i = Files.newInputStream(p)) {
+                        IOUtils.copy(i, out);
+                        i.close();
+                    }
+
                     out.closeArchiveEntry();
                 }
                 out.finish();

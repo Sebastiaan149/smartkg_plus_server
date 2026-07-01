@@ -164,7 +164,7 @@ public class QueryExecutionPlanServlet extends HttpServlet {
 
             //System.out.println("Welcome to the query plan do get");
             String acceptHeader = request.getHeader(HttpHeaders.ACCEPT);
-            String bestMatch = MIMEParse.bestMatch(acceptHeader);
+            String bestMatch = MIMEParse.bestMatch(acceptHeader == null ? "*/*" : acceptHeader);
 
             response.setHeader(HttpHeaders.SERVER, "Linked Data Fragments Server");
             response.setContentType(bestMatch);

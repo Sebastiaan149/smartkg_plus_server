@@ -223,7 +223,7 @@ public class LinkedDataFragmentServlet extends HttpServlet {
             //System.out.println("===================Start DoGet===================");
             // do conneg
             String acceptHeader = request.getHeader(HttpHeaders.ACCEPT);
-            String bestMatch = MIMEParse.bestMatch(acceptHeader);
+            String bestMatch = MIMEParse.bestMatch(acceptHeader == null ? "*/*" : acceptHeader);
             //   System.out.println("Accept Header ==>" + acceptHeader);
             //   System.out.println("Best Match==>" + acceptHeader);
 
