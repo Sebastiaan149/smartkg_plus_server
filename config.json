@@ -1,8 +1,8 @@
 {
   "title": "SmartKG+ Linked Data Fragments server",
 
-  "metadatapath": "../data/partitioning/metadata.json",
-  "moleculesdatapath": "../data/partitioning/hdt",
+  "metadatapath": "../data/typed-partitioning/metadata.json",
+  "moleculesdatapath": "../data/typed-partitioning/hdt",
   "cspath": "../data/dataset.hdt.cs",
   "partstring" : "",
   "default" : "smartkg+",

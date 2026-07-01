@@ -62,6 +62,18 @@ public class QueryExecutionPlanServlet extends HttpServlet {
     private final Collection<String> mimeTypes = new ArrayList<>();
     private final HashMap<String, IDataSource> dataSources = new HashMap<>();
 
+    private static String buildPartitionFileName(int family) {
+        String partitionstring = PartitioningServlet.config.getPartitionstring();
+        if (partitionstring == null || partitionstring.isEmpty()) {
+            return family + ".hdt";
+        }
+        return partitionstring + "_" + family + ".hdt";
+    }
+
+    private static String buildTypedPartitionFileName(int family, String classValue) {
+        return buildPartitionFileName(family) + "_" + classValue + ".hdt";
+    }
+
     private File getConfigFile(ServletConfig config) throws IOException {
 
          System.out.println("Configuration in QueryExecutionPlanServlet");
@@ -227,7 +239,7 @@ public class QueryExecutionPlanServlet extends HttpServlet {
                 int family = getQueryStarsFamilies(star).get(0);
                 try {
                   //  System.out.println("getDataSource from Plan Servlet: " + PartitioningServlet.config.getPartitionstring() + "_" + family + ".hdt");
-                    ds = PartitioningServlet.getDataSource(PartitioningServlet.config.getPartitionstring() + "_" + family + ".hdt");
+                    ds = PartitioningServlet.getDataSource(buildPartitionFileName(family));
 
                 //    System.out.println("ds ==>" + ds);
                 } catch (DataSourceNotFoundException e) {
@@ -311,19 +323,19 @@ public class QueryExecutionPlanServlet extends HttpServlet {
                 //System.out.println("In the else of next.size() == 1 || hasInfrequent(next)");
                 family = getQueryStarsFamilies(next).get(0);
              //   System.out.println("family: " + family);
-                partitionUrl = PartitioningServlet.config.getUri() + "partition/" + PartitioningServlet.config.getPartitionstring() + "_" + family + ".hdt";
+                partitionUrl = PartitioningServlet.config.getUri() + "partition/" + buildPartitionFileName(family);
                System.out.println("===> partitionUrl:" + partitionUrl);
              
-               System.out.println("check if the input is not " + PartitioningServlet.config.getPartitionstring() + "_" + family + ".hdt");
+               System.out.println("check if the input is not " + buildPartitionFileName(family));
                 
                
                if(next.isHasType() && !next.getClassValue().contains("?")){
                    System.out.println("***inside the f");
-                    datasource = PartitioningServlet.getDataSource(PartitioningServlet.config.getPartitionstring() + "_" + family + ".hdt_" + next.getClassValue() + ".hdt");
+                    datasource = PartitioningServlet.getDataSource(buildTypedPartitionFileName(family, next.getClassValue()));
                     System.out.println("***datasource: " + datasource.getFilename());
-                    if (datasource == null) datasource = PartitioningServlet.getDataSource(PartitioningServlet.config.getPartitionstring() + "_" + family + ".hdt");
+                    if (datasource == null) datasource = PartitioningServlet.getDataSource(buildPartitionFileName(family));
                }else{
-                    datasource = PartitioningServlet.getDataSource(PartitioningServlet.config.getPartitionstring() + "_" + family + ".hdt");
+                    datasource = PartitioningServlet.getDataSource(buildPartitionFileName(family));
                }
         
               
@@ -363,12 +375,12 @@ public class QueryExecutionPlanServlet extends HttpServlet {
                 System.err.println("getUri(): " + PartitioningServlet.config.getUri() );
                 System.err.println("getPartitionstring: " + PartitioningServlet.config.getPartitionstring());
                 System.err.println("Went inside getClass");
-                System.err.println("QueryOperator: =>" + PartitioningServlet.config.getUri() + "molecule/" + PartitioningServlet.config.getPartitionstring() + "_" + family + ".hdt_" + next.getClassValue() + ".hdt");
+                System.err.println("QueryOperator: =>" + PartitioningServlet.config.getUri() + "molecule/" + buildTypedPartitionFileName(family, next.getClassValue()));
                 
-                op = new QueryOperator(PartitioningServlet.config.getUri() + "molecule/" + PartitioningServlet.config.getPartitionstring() + "_" + family + ".hdt_" + next.getClassValue() + ".hdt", next);
+                op = new QueryOperator(PartitioningServlet.config.getUri() + "molecule/" + buildTypedPartitionFileName(family, next.getClassValue()), next);
             }else{
                 System.err.println("Went inside normal partitioning");
-                op = new QueryOperator(PartitioningServlet.config.getUri() + "molecule/" + PartitioningServlet.config.getPartitionstring() + "_" + family + ".hdt", next);
+                op = new QueryOperator(PartitioningServlet.config.getUri() + "molecule/" + buildPartitionFileName(family), next);
             }
             
         }
