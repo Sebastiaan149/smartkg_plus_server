@@ -25,6 +25,8 @@ Each Triple Pattern Fragment offers:
 
 This is a **Java** implementation based on Jena. 
 
+NOTE: the following commands were executed using Java 21.
+
 ## Build
 Execute the following command to create a WAR and JAR file:
 ```
@@ -33,9 +35,11 @@ $ mvn install
 ## Deploy stand alone
 The server can run with Jetty from a single jar as follows:
 
-    java -jar ldf-server.jar [config.json]
+```
+java -jar target/ldf-server.jar [config.json]
+```
 
-The `config.json` parameters is optional and is default the `config-example.json` file in the same directory as `ldf-server.jar`.
+The `config.json` parameters is optional and is default the `config-example.json` file in the same directory as `target/ldf-server.jar`.
 
 ## Deploy on an application server
 Use an application server such as [Tomcat](http://tomcat.apache.org/) to deploy the WAR file.
