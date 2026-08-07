@@ -7,7 +7,7 @@ public interface ILinkedDataFragmentRequest
     /**
      *
      */
-    public final static long TRIPLESPERPAGE = 100L;
+    public final static long TRIPLESPERPAGE = 500L;
     public final static long TRIPLESPERREQUEST = 30L;
 
     /**

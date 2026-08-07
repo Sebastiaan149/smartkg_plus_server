@@ -269,7 +269,6 @@ public class LinkedDataFragmentServlet extends HttpServlet {
                         fragment = dataSource.getRequestProcessor(IDataSource.ProcessorType.TPF)
                                 .createRequestedFragment(ldfRequest);
 
-                        System.out.println("In the tpf");
 
                     } else {
 
