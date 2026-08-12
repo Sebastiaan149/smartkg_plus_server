@@ -229,7 +229,7 @@ public class QueryExecutionPlanServlet extends HttpServlet {
         for (StarString star : stars) {
         
             IDataSource ds;
-            if (star.size() == 1 || hasInfrequent(star)) {
+            if (star.size() == 1 || hasInfrequent(star) || !hasConcreteType(star)) {
                // System.out.println("before plan single star");
                 ds = dataSources.get(this.config.getDefaultGraph());
                // System.out.println("After plan single star");
@@ -310,7 +310,7 @@ public class QueryExecutionPlanServlet extends HttpServlet {
         int family = 0;
         IDataSource datasource = null;
         String partitionUrl;
-        if (next.size() == 1 || hasInfrequent(next)) {
+        if (next.size() == 1 || hasInfrequent(next) || !hasConcreteType(next)) {
               //System.out.println("next.size() == 1 || hasInfrequent(next)");
               //System.out.println(PartitioningServlet.config.getUri() + PartitioningServlet.config.getDefaultGraph());
             QueryOperator operator = new QueryOperator(PartitioningServlet.config.getUri() + PartitioningServlet.config.getDefaultGraph(), next);
@@ -321,7 +321,17 @@ public class QueryExecutionPlanServlet extends HttpServlet {
         } else {
           //  try {
                 //System.out.println("In the else of next.size() == 1 || hasInfrequent(next)");
-                family = getQueryStarsFamilies(next).get(0);
+                List<Integer> matchingFamilies = getQueryStarsFamilies(next);
+                if (matchingFamilies.size() != 1) {
+                    QueryOperator operator = new QueryOperator(
+                            PartitioningServlet.config.getUri() + PartitioningServlet.config.getDefaultGraph(), next);
+                    List<StarString> remainingStars = new ArrayList<>(stars);
+                    remainingStars.remove(next);
+                    QueryExecutionPlan plan = new QueryExecutionPlan(
+                            operator, subplan, System.currentTimeMillis() + quantum);
+                    return createExecutionPlan(remainingStars, plan, request, boundVars);
+                }
+                family = matchingFamilies.get(0);
              //   System.out.println("family: " + family);
                 partitionUrl = PartitioningServlet.config.getUri() + "partition/" + buildPartitionFileName(family);
                System.out.println("===> partitionUrl:" + partitionUrl);
@@ -398,6 +408,17 @@ public class QueryExecutionPlanServlet extends HttpServlet {
             }
         }
         return false;
+    }
+
+    /**
+     * A typed family is complete only for a star that fixes its rdf:type.
+     * Variable-type and untyped stars may span several typed partitions and
+     * must therefore be evaluated against the complete dataset.
+     */
+    private boolean hasConcreteType(StarString star) {
+        return star.isHasType()
+                && star.getClassValue() != null
+                && !star.getClassValue().contains("?");
     }
 
     private ArrayList<Integer> intersection(List<Integer> starQueryFamilies, List<Integer> tripleFamilyList) {
