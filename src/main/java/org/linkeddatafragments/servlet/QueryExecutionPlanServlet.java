@@ -225,18 +225,37 @@ public class QueryExecutionPlanServlet extends HttpServlet {
 
         StarString best = null;
         long low = Long.MAX_VALUE;
+        long lowAnchor = Long.MAX_VALUE;
+        StarString bestSinglePattern = null;
+        long lowSinglePattern = Long.MAX_VALUE;
         //System.out.println("LOW: " + low);
         for (StarString star : stars) {
         
             IDataSource ds;
-            if (star.size() == 1 || hasInfrequent(star) || !hasConcreteType(star)) {
+            if (star.size() == 1 || hasInfrequent(star)) {
                // System.out.println("before plan single star");
                 ds = dataSources.get(this.config.getDefaultGraph());
                // System.out.println("After plan single star");
                 //System.out.println("plan single star with card" + ds.cardinalityEstimation(star));
             } else {
                 //System.out.println("plan family partition ");
-                int family = getQueryStarsFamilies(star).get(0);
+                List<Integer> matchingFamilies = getQueryStarsFamilies(star);
+                if (matchingFamilies.size() != 1) {
+                    ds = dataSources.get(this.config.getDefaultGraph());
+                    long card = ds.cardinalityEstimation(star);
+                    long anchor = smallestTriplePatternCardinality(ds, star);
+                    if (star.size() == 1 && card > 0 && card < lowSinglePattern) {
+                        lowSinglePattern = card;
+                        bestSinglePattern = star;
+                    }
+                    if (card < low || (card == low && anchor < lowAnchor)) {
+                        low = card;
+                        lowAnchor = anchor;
+                        best = star;
+                    }
+                    continue;
+                }
+                int family = matchingFamilies.get(0);
                 try {
                   //  System.out.println("getDataSource from Plan Servlet: " + PartitioningServlet.config.getPartitionstring() + "_" + family + ".hdt");
                     ds = PartitioningServlet.getDataSource(buildPartitionFileName(family));
@@ -248,16 +267,37 @@ public class QueryExecutionPlanServlet extends HttpServlet {
             }
             //System.out.println("choosing best: " + star);
             long card = ds.cardinalityEstimation(star);
+            long anchor = smallestTriplePatternCardinality(ds, star);
+            if (star.size() == 1 && card > 0 && card < lowSinglePattern) {
+                lowSinglePattern = card;
+                bestSinglePattern = star;
+            }
             //System.out.println("star: " + star);
             //System.out.println("Card: " + card);
             //if(card == 0) return null;
-            if (card < low) {
+            if (card < low || (card == low && anchor < lowAnchor)) {
                 low = card;
+                lowAnchor = anchor;
                 best = star;
             }
         }
 
+        // A slightly larger TPF anchor can be much more selective in practice
+        // than a characteristic-set estimate that ignores multi-valued star
+        // predicates. Prefer it within a conservative factor of two; later
+        // stars then receive concrete bindings through the left-linear plan.
+        if (bestSinglePattern != null && low > 0 && lowSinglePattern <= low * 2) {
+            return bestSinglePattern;
+        }
         return best;
+    }
+
+    private long smallestTriplePatternCardinality(IDataSource dataSource, StarString star) {
+        long smallest = Long.MAX_VALUE;
+        for (int index = 0; index < star.size(); index++) {
+            smallest = Math.min(smallest, dataSource.cardinalityEstimation(star.getTriple(index)));
+        }
+        return smallest;
     }
 
     private StarString getNextStar(List<StarString> stars, List<String> boundVars) {
@@ -310,7 +350,7 @@ public class QueryExecutionPlanServlet extends HttpServlet {
         int family = 0;
         IDataSource datasource = null;
         String partitionUrl;
-        if (next.size() == 1 || hasInfrequent(next) || !hasConcreteType(next)) {
+        if (next.size() == 1 || hasInfrequent(next)) {
               //System.out.println("next.size() == 1 || hasInfrequent(next)");
               //System.out.println(PartitioningServlet.config.getUri() + PartitioningServlet.config.getDefaultGraph());
             QueryOperator operator = new QueryOperator(PartitioningServlet.config.getUri() + PartitioningServlet.config.getDefaultGraph(), next);
